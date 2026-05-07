@@ -16,7 +16,7 @@ Saida:
         dm_favorecido.csv
         dm_tp_transacao.csv
         dm_tempo.csv
-        ft_transacao_cpgf.csv
+        ft_transacao.csv
 
 Uso:
     python etl_cpgf_dimensional.py
@@ -57,22 +57,6 @@ COLUNAS_OBRIGATORIAS = [
     "DATA TRANSAÇÃO",
     "VALOR TRANSAÇÃO",
 ]
-
-
-MESES_PT = {
-    1: "Janeiro",
-    2: "Fevereiro",
-    3: "Marco",
-    4: "Abril",
-    5: "Maio",
-    6: "Junho",
-    7: "Julho",
-    8: "Agosto",
-    9: "Setembro",
-    10: "Outubro",
-    11: "Novembro",
-    12: "Dezembro",
-}
 
 
 def limpar_texto(valor: object) -> str | None:
@@ -225,8 +209,17 @@ def preparar_staging(df: pd.DataFrame) -> pd.DataFrame:
     df = normalizar_colunas_texto(df, colunas_texto)
 
     # Ajustes para nomes curtos definidos no modelo fisico da atividade.
+    df["cd_orgao_superior"] = truncar_texto(df["cd_orgao_superior"], 20)
+    df["nm_orgao_superior"] = truncar_texto(df["nm_orgao_superior"], 100)
+    df["cd_orgao"] = truncar_texto(df["cd_orgao"], 20)
+    df["nm_orgao"] = truncar_texto(df["nm_orgao"], 100)
+    df["cd_unidade_gestora"] = truncar_texto(df["cd_unidade_gestora"], 20)
+    df["nm_unidade_gestora"] = truncar_texto(df["nm_unidade_gestora"], 100)
+    df["cpf_portador"] = truncar_texto(df["cpf_portador"], 20)
     df["nm_portador"] = truncar_texto(df["nm_portador"], 45)
+    df["doc_favorecido"] = truncar_texto(df["doc_favorecido"], 20)
     df["nm_favorecido"] = truncar_texto(df["nm_favorecido"], 45)
+    df["descr_transacao"] = truncar_texto(df["descr_transacao"], 45)
 
     df["valor_transacao"] = converter_valor_brasileiro(df["valor_transacao"])
 
@@ -249,6 +242,7 @@ def preparar_staging(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[data_valida, "sk_tempo"] = df.loc[data_valida, "dt_transacao"].dt.strftime("%Y%m%d").astype(int)
 
     df["tp_doc_favorecido"] = df["doc_favorecido"].map(classificar_tp_doc_favorecido)
+    df["tp_doc_favorecido"] = truncar_texto(df["tp_doc_favorecido"], 4)
     df["fl_sigiloso_favorecido"] = (
         df["doc_favorecido"].eq("-11")
         | df["nm_favorecido"].fillna("").str.upper().eq("SIGILOSO")
@@ -261,6 +255,7 @@ def preparar_staging(df: pd.DataFrame) -> pd.DataFrame:
 
     df["gp_transacao"] = df["descr_transacao"].map(classificar_gp_transacao)
     df.loc[~data_valida, "gp_transacao"] = "Sigiloso"
+    df["gp_transacao"] = truncar_texto(df["gp_transacao"], 45)
 
     return df
 
@@ -349,16 +344,15 @@ def construir_dimensoes_e_fato(stg: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
     fato = fato.merge(dm_tp_transacao, on=cols_tp_transacao, how="left")
 
-    ft_transacao_cpgf = pd.DataFrame(
+    ft_transacao = pd.DataFrame(
         {
-            "sk_transacao_cpgf": range(1, len(fato) + 1),
+            "sk_transacao": range(1, len(fato) + 1),
             "sk_orgao": fato["sk_orgao"].astype(int),
             "sk_portador": fato["sk_portador"].astype(int),
             "sk_favorecido": fato["sk_favorecido"].astype(int),
             "sk_tp_transacao": fato["sk_tp_transacao"].astype(int),
             "sk_tempo": fato["sk_tempo"].astype(int),
-            "valor_transacao": fato["valor_transacao"].round(2),
-            "quantidade_transacao": 1,
+            "vl_transacao": fato["valor_transacao"].round(2),
         }
     )
 
@@ -369,7 +363,7 @@ def construir_dimensoes_e_fato(stg: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "dm_favorecido": dm_favorecido,
         "dm_tp_transacao": dm_tp_transacao,
         "dm_tempo": dm_tempo,
-        "ft_transacao_cpgf": ft_transacao_cpgf,
+        "ft_transacao": ft_transacao,
     }
 
 
@@ -383,7 +377,7 @@ def salvar_tabelas(tabelas: dict[str, pd.DataFrame], output_dir: Path) -> None:
 
 
 def imprimir_resumo(tabelas: dict[str, pd.DataFrame]) -> None:
-    fato = tabelas["ft_transacao_cpgf"]
+    fato = tabelas["ft_transacao"]
     staging = tabelas["stg_cpgf"]
     print("ETL concluido com sucesso.")
     print("Resumo das tabelas geradas:")
@@ -393,7 +387,7 @@ def imprimir_resumo(tabelas: dict[str, pd.DataFrame]) -> None:
         print(f"- {nome}: {len(df):,} linhas".replace(",", "."))
     print(
         "Valor total da fato: "
-        + f"{fato['valor_transacao'].sum(min_count=1):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        + f"{fato['vl_transacao'].sum(min_count=1):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     )
     print(f"Transacoes sem data/sk_tempo = -1: {(fato['sk_tempo'] == -1).sum():,}".replace(",", "."))
     print("Resumo de qualidade da carga:")

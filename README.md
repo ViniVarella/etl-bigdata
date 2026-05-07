@@ -94,7 +94,7 @@ O ETL gera os seguintes arquivos CSV:
 - `dm_favorecido.csv`
 - `dm_tp_transacao.csv`
 - `dm_tempo.csv`
-- `ft_transacao_cpgf.csv`
+- `ft_transacao.csv`
 
 ## Regras principais do ETL
 
@@ -133,12 +133,11 @@ Dimensoes:
 
 Fato:
 
-- `ft_transacao_cpgf`
+- `ft_transacao`
 
 Medidas principais:
 
-- `valor_transacao`
-- `quantidade_transacao`
+- `vl_transacao`
 
 ## Uso no BI
 
