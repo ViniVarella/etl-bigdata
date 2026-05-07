@@ -216,9 +216,9 @@ def preparar_staging(df: pd.DataFrame) -> pd.DataFrame:
     df["cd_unidade_gestora"] = truncar_texto(df["cd_unidade_gestora"], 20)
     df["nm_unidade_gestora"] = truncar_texto(df["nm_unidade_gestora"], 100)
     df["cpf_portador"] = truncar_texto(df["cpf_portador"], 20)
-    df["nm_portador"] = truncar_texto(df["nm_portador"], 45)
+    df["nm_portador"] = truncar_texto(df["nm_portador"], 60)
     df["doc_favorecido"] = truncar_texto(df["doc_favorecido"], 20)
-    df["nm_favorecido"] = truncar_texto(df["nm_favorecido"], 45)
+    df["nm_favorecido"] = truncar_texto(df["nm_favorecido"], 150)
     df["descr_transacao"] = truncar_texto(df["descr_transacao"], 45)
 
     df["valor_transacao"] = converter_valor_brasileiro(df["valor_transacao"])
