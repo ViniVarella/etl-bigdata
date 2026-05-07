@@ -147,6 +147,7 @@ def truncar_texto(serie: pd.Series, tamanho: int) -> pd.Series:
 
 
 def ler_arquivos_cpgf(input_dir: Path, pattern: str, encoding: str) -> pd.DataFrame:
+    """Le os arquivos de entrada, valida o schema minimo e consolida o bruto."""
     arquivos = sorted(input_dir.glob(pattern))
     if not arquivos:
         raise FileNotFoundError(
@@ -261,6 +262,7 @@ def preparar_staging(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def construir_dimensoes_e_fato(stg: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Constroi as dimensoes e a fato do modelo estrela a partir da staging."""
     # dm_orgao
     cols_orgao = [
         "cd_orgao_superior",
@@ -344,6 +346,7 @@ def construir_dimensoes_e_fato(stg: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
     fato = fato.merge(dm_tp_transacao, on=cols_tp_transacao, how="left")
 
+    # A fato final fica restrita as chaves das dimensoes e a medida monetaria.
     ft_transacao = pd.DataFrame(
         {
             "sk_transacao": range(1, len(fato) + 1),
@@ -368,6 +371,7 @@ def construir_dimensoes_e_fato(stg: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
 
 def salvar_tabelas(tabelas: dict[str, pd.DataFrame], output_dir: Path) -> None:
+    """Salva as tabelas finais em CSV e ignora a staging usada so para auditoria."""
     output_dir.mkdir(parents=True, exist_ok=True)
     for nome, df in tabelas.items():
         if nome == "stg_cpgf":
@@ -377,6 +381,7 @@ def salvar_tabelas(tabelas: dict[str, pd.DataFrame], output_dir: Path) -> None:
 
 
 def imprimir_resumo(tabelas: dict[str, pd.DataFrame]) -> None:
+    """Imprime o resumo final da carga e os indicadores de qualidade do processo."""
     fato = tabelas["ft_transacao"]
     staging = tabelas["stg_cpgf"]
     print("ETL concluido com sucesso.")
@@ -398,6 +403,7 @@ def imprimir_resumo(tabelas: dict[str, pd.DataFrame]) -> None:
 
 
 def main() -> None:
+    """Orquestra a execucao completa do ETL do CPGF."""
     parser = argparse.ArgumentParser(
         description="ETL dimensional para arquivos CSV do CPGF."
     )
@@ -425,6 +431,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Fluxo principal do ETL: leitura, preparo, modelagem dimensional e escrita.
     bruto = ler_arquivos_cpgf(args.input_dir, args.pattern, args.encoding)
     staging = preparar_staging(bruto)
     tabelas = construir_dimensoes_e_fato(staging)
